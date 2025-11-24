@@ -4,6 +4,7 @@ pred/
 config/
 .hypothesis/
 .config/
+logs/
 
 plot*
 nah_inputs.txt

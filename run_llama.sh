@@ -19,7 +19,7 @@ GQA="True" # True False
 MEAN_V_TRICK="False"
 MAX_ITER=0 # 0 for dynamic setting
 
-MAX_CPU_IN_USE=48
+MAX_CPU_IN_USE=20
 DROP=0
 RECENT_SIZE=32
 PRESERVE_LAYER=0
