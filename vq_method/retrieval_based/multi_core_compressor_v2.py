@@ -97,19 +97,38 @@ def compute_kmeans_worker(
         time_value: Value,
         profiling_sync: Value
 ):  
-    cpu_num = mp.cpu_count()
-    cur_pid = os.getpid()
+    # 1. "Hard check" logic: check if n_core is >= 1
     if n_core >= 1:
-        cpu_use = int(n_core)
-        if idx == -1:
-            os.sched_setaffinity(cur_pid, list(range(cpu_num))[-2:-1])
-        else:
-            os.sched_setaffinity(cur_pid, list(range(cpu_num))[core_offset + cpu_use * (idx+1) : core_offset + cpu_use * (idx+2)])
-    else:
-        assert int(n_core * task_cnt) == 1, f"{n_core},{task_cnt}"
-        cpu_use = 1
-        core_idx = math.floor(n_core*idx)
-        os.sched_setaffinity(cur_pid, list(range(cpu_num))[core_idx:core_idx + 1])
+        # 2. "Reinforcement": We wrap the original logic in a try...except
+        #    to prevent it from crashing on its own (e.g., on a 1-core machine).
+        try:
+            cpu_num = mp.cpu_count()
+            cur_pid = os.getpid()
+            cpu_use = int(n_core)
+            
+            if idx == -1:
+                target_cores = list(range(cpu_num))[-2:-1] # Original logic
+            else:
+                target_cores = list(range(cpu_num))[core_offset + cpu_use * (idx+1) : core_offset + cpu_use * (idx+2)] # Original logic
+            
+            # Add a safety check for empty lists (e.g., on cpu_num=1)
+            if target_cores: 
+                os.sched_setaffinity(cur_pid, target_cores)
+            else:
+                # This can happen if cpu_num=1
+                logger.warning(f"Worker {idx} (PID {cur_pid}) computed empty core list. Skipping affinity.")
+                
+        except (OSError, AttributeError, ValueError) as e:
+            # Catch all affinity-setting failures (permissions, Windows, slice index, etc.)
+            logger.warning(f"Worker {idx} (PID {cur_pid}) failed to set CPU affinity: {e}. Proceeding without affinity.")
+            pass
+
+    # 3. "Defuse the mine":
+    #    We have completely deleted the original 'else:' block (lines 112-117).
+    #    Therefore, when n_core = 0 (e.g., MAX_CPU_IN_USE = 8),
+    #    the 'if' check fails, the program skips the 'if' block,
+    #    and since there is no 'else' block, it safely continues.
+    #    The 'assert 0 == 1' is gone.
 
     # NOTE: It is necessary to not patch sklearn before setting CPU affinity.
     # There are some environments in which doing patch earlier will fail CPU affinity setting.

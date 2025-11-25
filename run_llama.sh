@@ -19,7 +19,7 @@ GQA="True" # True False
 MEAN_V_TRICK="False"
 MAX_ITER=0 # 0 for dynamic setting
 
-MAX_CPU_IN_USE=20
+MAX_CPU_IN_USE=10 # Test for max CPU Cores less than head * subvec
 DROP=0
 RECENT_SIZE=32
 PRESERVE_LAYER=0
